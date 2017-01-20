@@ -215,9 +215,13 @@ func analysis(data *tbdAnalysisInput, connThresh int, maxTime int64, minTime int
 
 	//find the delta times between the timestamps
 	diff := make([]int64, length)
+	mean := 0.0
 	for i := 0; i < length; i++ {
 		diff[i] = data.ts[i+1] - data.ts[i]
+		mean += float64(diff[i])
 	}
+
+	mean /= float64(length)
 
 	//perfect beacons should have symmetric delta time distributions
 	//Bowley's measure of skew is used to check symmetry
@@ -271,18 +275,27 @@ func analysis(data *tbdAnalysisInput, connThresh int, maxTime int64, minTime int
 	//more skewed distributions recieve a lower score
 	//less skewed distributions recieve a higher score
 	alpha := 1.0 - math.Abs(bSkew)
-	//lower dispersion is better, cutoff dispersion scores at 30 seconds
-	k := 120.0 / 3600.0
-	beta := 1.0 - float64(madm)/(float64(mid)*k)
+
+	k := (3 * 60) / 3600.0
+	beta := float64(madm) / (float64(mid) * k)
+
+	if beta > 1.0 {
+		beta = 1.0
+	}
+
+	beta = 1.0 - math.Pow(beta, 20)
+
 	if beta < 0 {
 		beta = 0
 	}
 
-	// gamma := duration
+	totalTime := float64(data.ts[length] - data.ts[0])
+	estimateTime := float64(mid * int64(length))
+	gamma := math.Pow(math.E, -math.Pow(((estimateTime-totalTime)/(totalTime/4)), 2))
 
 	//in order of ascending importance: skew, duration, dispersion
 	// output.TS_score = (alpha + beta + gamma) / 3.0
-	output.TS_score = 0.2*alpha + 0.8*beta
+	output.TS_score = 0.15*alpha + 0.7*beta + 0.15*gamma
 
 	return output, nil
 }
