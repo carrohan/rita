@@ -271,16 +271,18 @@ func analysis(data *tbdAnalysisInput, connThresh int, maxTime int64, minTime int
 	//more skewed distributions recieve a lower score
 	//less skewed distributions recieve a higher score
 	alpha := 1.0 - math.Abs(bSkew)
-
 	//lower dispersion is better, cutoff dispersion scores at 30 seconds
-	beta := 1.0 - float64(madm)/30.0
+	k := 120.0 / 3600.0
+	beta := 1.0 - float64(madm)/(float64(mid)*k)
 	if beta < 0 {
 		beta = 0
 	}
-	gamma := duration
+
+	// gamma := duration
 
 	//in order of ascending importance: skew, duration, dispersion
-	output.TS_score = (alpha + beta + gamma) / 3.0
+	// output.TS_score = (alpha + beta + gamma) / 3.0
+	output.TS_score = 0.2*alpha + 0.8*beta
 
 	return output, nil
 }
